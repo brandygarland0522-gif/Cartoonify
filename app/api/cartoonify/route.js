@@ -20,7 +20,8 @@ apiKey = apiKey.replace(/[^\x00-\xFF]/g, "").trim();
     }
 
     const fd = new FormData();
-    fd.append("model", "gpt-image-1.5");
+    fd.append("model", "gpt-image-1");
+
     fd.append(
       "prompt",
       "Transform this photo into a realistic cartoon portrait. Keep facial features, skin tone, hairstyle, and expression recognizable. Clean outlines, subtle texture, not exaggerated."
