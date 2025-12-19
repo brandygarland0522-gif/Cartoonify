@@ -25,7 +25,8 @@ export async function POST(req) {
       "Transform this photo into a realistic cartoon portrait. Keep facial features, skin tone, hairstyle, and expression recognizable. Clean outlines, subtle texture, not exaggerated."
     );
     fd.append("size", "1024x1024");
-    fd.append("image", file, file.name || "upload.jpg");
+    fd.append("image", file, "upload.jpg");
+
 
     const r = await fetch("https://api.openai.com/v1/images/edits", {
       method: "POST",
