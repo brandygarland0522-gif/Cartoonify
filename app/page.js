@@ -1,68 +1,48 @@
-"use client";
-import { useState } from "react";
+import OpenAI from "openai";
 
-export default function Home() {
-  const [file, setFile] = useState(null);
-  const [imgSrc, setImgSrc] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
+export const runtime = "nodejs";
 
-  async function onSubmit(e) {
-    e.preventDefault();
-    setErr("");
-    setImgSrc("");
-
-    if (!file) return setErr("Pick a photo first.");
-
-    setBusy(true);
-    try {
-      const fd = new FormData();
-      fd.append("image", file);
-
-      const res = await fetch("/api/cartoonify", {
-        method: "POST",
-        body: fd
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Something went wrong");
-
-      setImgSrc(`data:image/png;base64,${json.b64}`);
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setBusy(false);
+export async function POST(req) {
+  try {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return Response.json(
+        { error: "OPENAI_API_KEY missing in Vercel environment variables" },
+        { status: 500 }
+      );
     }
-  }
 
-  return (
-    <main style={{ maxWidth: 520, margin: "40px auto", padding: 16 }}>
-      <h1>Cartoonify</h1>
-      <p>Upload a photo and turn it into a realistic cartoon.</p>
+    const client = new OpenAI({ apiKey });
 
-      <form onSubmit={onSubmit}>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setFile(e.target.files?.[0])}
-        />
-        <br />
-        <button style={{ marginTop: 12 }} disabled={busy}>
-          {busy ? "Working..." : "Cartoonify"}
-        </button>
-      </form>
+    const form = await req.formData();
+    const file = form.get("image");
 
-      {err && <p style={{ color: "crimson" }}>{err}</p>}
+    if (!file) {
+      return Response.json(
+        { error: "No image uploaded" },
+        { status: 400 }
+      );
+    }
 
-      {imgSrc && (
-        <>
-          <h3>Result</h3>
-          <img src={imgSrc} alt="Result" style={{ width: "100%", borderRadius: 12 }} />
-          <p>
-            <a href={imgSrc} download="cartoon.png">Download</a>
-          </p>
-        </>
-      )}
-    </main>
-  );
-}
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    const result = await client.images.edits({
+      model: "gpt-image-1.5",
+      image: buffer,
+      prompt:
+        "Transform this photo into a realistic cartoon portrait. Keep facial features, skin tone, hairstyle, and expression recognizable. Clean outlines, subtle texture, not exaggerated.",
+      size: "1024x1024"
+    });
+
+    const b64 = result?.data?.[0]?.b64_json;
+    if (!b64) {
+      return Response.json(
+        { error: "OpenAI returned no image data" },
+        { status: 502 }
+      );
+    }
+
+    return Response.json({ b64 });
+  } catch (e) {
+    console.e
+
