@@ -17,7 +17,6 @@ export async function POST(req) {
       return Response.json({ error: "No image uploaded" }, { status: 400 });
     }
 
-    // Build multipart form data for OpenAI Images Edits endpoint
     const fd = new FormData();
     fd.append("model", "gpt-image-1.5");
     fd.append(
@@ -25,23 +24,23 @@ export async function POST(req) {
       "Transform this photo into a realistic cartoon portrait. Keep facial features, skin tone, hairstyle, and expression recognizable. Clean outlines, subtle texture, not exaggerated."
     );
     fd.append("size", "1024x1024");
-    fd.append("image", file, "upload.jpg");
 
+    // Convert to Blob with safe filename to avoid ByteString unicode errors
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    const blob = new Blob([bytes], { type: file.type || "image/jpeg" });
+    fd.append("image", blob, "upload.jpg");
 
     const r = await fetch("https://api.openai.com/v1/images/edits", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`
-      },
+      headers: { Authorization: `Bearer ${apiKey}` },
       body: fd
     });
 
     const data = await r.json().catch(() => null);
 
     if (!r.ok) {
-      const msg =
-        data?.error?.message ||
-        `OpenAI request failed (${r.status})`;
+      const msg = data?.error?.message || `OpenAI request failed (${r.status})`;
       return Response.json({ error: msg }, { status: 502 });
     }
 
@@ -55,3 +54,4 @@ export async function POST(req) {
     return Response.json({ error: e.message || "Server error" }, { status: 500 });
   }
 }
+
