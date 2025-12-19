@@ -2,7 +2,9 @@ export const runtime = "nodejs";
 
 export async function POST(req) {
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
+  let apiKey = process.env.OPENAI_API_KEY || "";
+apiKey = apiKey.replace(/[^\x00-\xFF]/g, "").trim();
+
     if (!apiKey) {
       return Response.json(
         { error: "OPENAI_API_KEY missing in Vercel environment variables" },
