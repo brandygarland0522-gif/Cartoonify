@@ -1,5 +1,3 @@
-import OpenAI from "openai";
-
 export const runtime = "nodejs";
 
 export async function POST(req) {
@@ -12,8 +10,6 @@ export async function POST(req) {
       );
     }
 
-    const client = new OpenAI({ apiKey });
-
     const form = await req.formData();
     const file = form.get("image");
 
@@ -21,30 +17,40 @@ export async function POST(req) {
       return Response.json({ error: "No image uploaded" }, { status: 400 });
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    // Build multipart form data for OpenAI Images Edits endpoint
+    const fd = new FormData();
+    fd.append("model", "gpt-image-1.5");
+    fd.append(
+      "prompt",
+      "Transform this photo into a realistic cartoon portrait. Keep facial features, skin tone, hairstyle, and expression recognizable. Clean outlines, subtle texture, not exaggerated."
+    );
+    fd.append("size", "1024x1024");
+    fd.append("image", file, file.name || "upload.jpg");
 
-    const result = await client.images.edits({
-      model: "gpt-image-1.5",
-      image: buffer,
-      prompt:
-        "Transform this photo into a realistic cartoon portrait. Keep facial features, skin tone, hairstyle, and expression recognizable. Clean outlines, subtle texture, not exaggerated.",
-      size: "1024x1024"
+    const r = await fetch("https://api.openai.com/v1/images/edits", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: fd
     });
 
-    const b64 = result?.data?.[0]?.b64_json;
+    const data = await r.json().catch(() => null);
+
+    if (!r.ok) {
+      const msg =
+        data?.error?.message ||
+        `OpenAI request failed (${r.status})`;
+      return Response.json({ error: msg }, { status: 502 });
+    }
+
+    const b64 = data?.data?.[0]?.b64_json;
     if (!b64) {
-      return Response.json(
-        { error: "OpenAI returned no image data" },
-        { status: 502 }
-      );
+      return Response.json({ error: "OpenAI returned no image data" }, { status: 502 });
     }
 
     return Response.json({ b64 });
   } catch (e) {
-    console.error("Cartoonify API error:", e);
-    return Response.json(
-      { error: e?.message || "Server error" },
-      { status: 500 }
-    );
+    return Response.json({ error: e.message || "Server error" }, { status: 500 });
   }
 }
